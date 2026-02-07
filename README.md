@@ -27,14 +27,14 @@ Darren's Agent ──→ Darren:        "Alex confirmed Thursday at 7. ✅"
 
 **Human effort:** Two sentences total.
 **AI effort:** Full negotiation, calendar check, confirmation.
-**Cost:** $0 (runs on free local models like qwen2:7b).
+**Cost:** $0 with local models (qwen2:7b), or pennies with cloud APIs (Claude, GPT, Gemini).
 
 ---
 
 ## 🧠 Design Principles
 
 - **Human-in-the-loop** — Agents never commit without human approval
-- **Any model** — Works on local 7B models. No cloud required.
+- **Any model** — Works on local 7B models (free, private) or cloud APIs like Claude, GPT, and Gemini. The protocol doesn't care what's behind the agent — just that it speaks JSON.
 - **Privacy-first** — No central server. Ed25519 signed. X25519 encrypted.
 - **Simple** — JSON envelopes any LLM can handle
 - **Decentralised** — Your agent, your server, your rules
@@ -215,7 +215,7 @@ node test.js
 ## 🤔 FAQ
 
 **Q: Does this need powerful models?**
-A: No. qwen2:7b (free, local) handles structured JSON negotiation perfectly. That's the point.
+A: No. qwen2:7b (free, local) handles structured JSON negotiation perfectly. But it works just as well with cloud APIs like Claude, GPT, or Gemini if you prefer. The protocol is model-agnostic — it's just JSON.
 
 **Q: How is this different from MCP or ACP?**
 A: MCP connects agents to tools. ACP connects agents to services. AI2AI connects agents to *each other*, acting as human representatives. It's the social layer.
