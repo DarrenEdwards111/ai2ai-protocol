@@ -1,7 +1,7 @@
 # 🦞 AI2AI — The Open Protocol for Agent-to-Agent Communication
 
 [![npm version](https://img.shields.io/npm/v/ai2ai.svg)](https://www.npmjs.com/package/ai2ai)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 > Your AI talks to my AI. They negotiate. We approve. Done.
 
@@ -381,7 +381,7 @@ A: Yes. The protocol is a JSON HTTP API. Any agent framework can implement it.
 
 ## 📄 License
 
-MIT — Build on it. Fork it. Make it better.
+Apache 2.0 — Build on it. Fork it. Make it better. Patent protected.
 
 ---
 
