@@ -122,15 +122,26 @@ node bin/ai2ai.js approve 1 "Thursday works!"
 
 ### Option 2: OpenClaw Skill
 
-If you're already running [OpenClaw](https://github.com/openclaw/openclaw):
+If you're already running [OpenClaw](https://github.com/openclaw/openclaw), install AI2AI as a skill:
 
 ```bash
-# Copy the skill to your workspace
-cp -r src/ ~/.openclaw/workspace/skills/ai2ai/
+# Clone the repo
+git clone https://github.com/DarrenEdwards111/ai2ai-protocol.git
+
+# Copy the skill to your OpenClaw workspace
+cp -r ai2ai-protocol/skill/ ~/.openclaw/workspace/skills/ai2ai/
 
 # Start the AI2AI server
 node ~/.openclaw/workspace/skills/ai2ai/ai2ai-server.js
 ```
+
+Your OpenClaw agent will automatically detect the skill and can use it to negotiate with other agents. The skill includes:
+- Full AI2AI server with all 11 intent handlers
+- Ed25519 signing & X25519 encryption
+- Trust management & contact list
+- Message queue with retry
+- Telegram integration for human approval
+- Natural language command parsing ("schedule dinner with Alex")
 
 ### Start Talking
 
