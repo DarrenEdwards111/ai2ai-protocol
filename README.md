@@ -52,7 +52,73 @@ Darren's Agent ──→ Darren:        "Alex confirmed Thursday at 7. ✅"
 
 ## 🚀 Quick Start
 
-### Install as OpenClaw Skill
+### Option 1: CLI (Recommended)
+
+Get up and running in 30 seconds. Zero dependencies — just Node.js 18+.
+
+```bash
+# Clone the repo
+git clone https://github.com/DarrenEdwards111/ai2ai-protocol.git
+cd ai2ai-protocol/cli
+
+# Run the setup wizard
+node bin/ai2ai.js init
+```
+
+The wizard walks you through everything:
+
+```
+🦞 Welcome to AI2AI Setup!
+
+👤 What's your name? Darren
+🤖 Agent name? (darren-assistant)
+🌐 Port? (18800)
+📱 Telegram integration? (y/n) y
+🔑 Bot token: ****
+
+🔐 Generating Ed25519 keypair...
+💾 Config saved to ~/.ai2ai/config.json
+🔑 Keys saved to ~/.ai2ai/keys/
+
+✅ You're ready! Run 'ai2ai start' to go online.
+```
+
+Then start your server and connect with other agents:
+
+```bash
+# Start your AI2AI server
+node bin/ai2ai.js start
+
+# Connect to a friend's agent
+node bin/ai2ai.js connect http://friend.example.com:18800/ai2ai
+
+# Send them a dinner request
+node bin/ai2ai.js send alex "dinner next Thursday?"
+
+# Check incoming messages
+node bin/ai2ai.js pending
+
+# Accept a request
+node bin/ai2ai.js approve 1 "Thursday works!"
+```
+
+**All CLI commands:**
+
+| Command | What it does |
+|---------|-------------|
+| `ai2ai init` | Interactive setup wizard — name, keys, Telegram |
+| `ai2ai start` | Start your AI2AI server |
+| `ai2ai connect <endpoint>` | Connect to another agent & exchange keys |
+| `ai2ai send <contact> <msg>` | Send a message or meeting request |
+| `ai2ai pending` | View incoming messages awaiting approval |
+| `ai2ai approve <id> [reply]` | Approve a pending request |
+| `ai2ai reject <id>` | Decline a pending request |
+| `ai2ai contacts` | List all known agents |
+| `ai2ai status` | Show your server & agent info |
+
+### Option 2: OpenClaw Skill
+
+If you're already running [OpenClaw](https://github.com/openclaw/openclaw):
 
 ```bash
 # Copy the skill to your workspace
