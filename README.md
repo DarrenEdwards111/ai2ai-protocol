@@ -1,5 +1,8 @@
 # 🦞 AI2AI — The Open Protocol for Agent-to-Agent Communication
 
+[![npm version](https://img.shields.io/npm/v/ai2ai.svg)](https://www.npmjs.com/package/ai2ai)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 > Your AI talks to my AI. They negotiate. We approve. Done.
 
 AI2AI is a simple, open protocol that lets personal AI assistants communicate and negotiate on behalf of their humans. No central server. No company in the middle. Just your agent talking to mine.
@@ -52,18 +55,19 @@ Darren's Agent ──→ Darren:        "Alex confirmed Thursday at 7. ✅"
 
 ## 🚀 Quick Start
 
-### Option 1: CLI (Recommended)
+### Option 1: npm (Recommended)
 
 Get up and running in 30 seconds. Zero dependencies — just Node.js 18+.
 
 ```bash
-# Clone the repo
-git clone https://github.com/DarrenEdwards111/ai2ai-protocol.git
-cd ai2ai-protocol/cli
+# Install globally
+npm install -g ai2ai
 
-# Run the setup wizard
-node bin/ai2ai.js init
+# Or run directly
+npx ai2ai init
 ```
+
+📦 **[ai2ai on npm](https://www.npmjs.com/package/ai2ai)**
 
 The wizard walks you through everything:
 
