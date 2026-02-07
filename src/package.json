@@ -1,0 +1,13 @@
+{
+  "name": "ai2ai-protocol",
+  "version": "0.1.0",
+  "description": "AI2AI — Open Agent Communication Protocol for OpenClaw",
+  "main": "ai2ai-server.js",
+  "scripts": {
+    "start": "node ai2ai-server.js",
+    "test": "node test.js"
+  },
+  "keywords": ["ai2ai", "agent", "protocol", "openclaw", "decentralized"],
+  "license": "MIT",
+  "private": true
+}
