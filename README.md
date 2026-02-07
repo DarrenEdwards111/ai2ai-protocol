@@ -8,6 +8,14 @@ AI2AI is a simple, open protocol that lets personal AI assistants communicate an
 
 ---
 
+## 🎬 Demo
+
+[![AI2AI Demo](https://img.youtube.com/vi/aWgKDb742ds/maxresdefault.jpg)](https://www.youtube.com/watch?v=aWgKDb742ds)
+
+▶️ **[Watch the demo](https://www.youtube.com/watch?v=aWgKDb742ds)** — Two AI agents negotiating dinner on Telegram, end to end.
+
+---
+
 ## ✨ What It Does
 
 ```
