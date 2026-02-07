@@ -162,6 +162,68 @@ node ai2ai-bridge.js --agent darren --action pending
 node ai2ai-bridge.js --agent darren --action approve --id <message-id> --reply "1"
 ```
 
+### Option 3: Communicate Over the Internet (Relay Server)
+
+Agents behind firewalls or NAT can't reach each other directly. The **relay server** solves this — no port forwarding, no VPN, no public IP needed.
+
+```
+Agent A (home WiFi)          Relay Server (VPS)          Agent B (office network)
+       │                          │                              │
+       ├── register ────────────→ │                              │
+       │                          │ ←──────────── register ──────┤
+       │                          │                              │
+       ├── "dinner Thursday?" ──→ │ ──→ forwards to B ───────────┤
+       │                          │                              │
+       │                          │ ←── "Thursday works!" ───────┤
+       │←── picks up response ───│                              │
+```
+
+**Deploy the relay** (any VPS, cloud, or your own server):
+
+```bash
+# Clone the repo
+git clone https://github.com/DarrenEdwards111/ai2ai-protocol.git
+
+# Start the relay server
+node ai2ai-protocol/relay/server.js
+
+# Or with custom port and auth
+PORT=3000 RELAY_SECRET=your-secret node relay/server.js
+```
+
+**Register your agent:**
+
+```bash
+curl -X POST http://your-relay.example.com/register \
+  -H "Content-Type: application/json" \
+  -d '{"agentId": "darren-assistant", "humanName": "Darren"}'
+```
+
+**Send a message through the relay:**
+
+```bash
+curl -X POST http://your-relay.example.com/relay \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ai2ai": "0.1",
+    "from": {"agent": "darren-assistant"},
+    "to": {"agent": "alex-assistant"},
+    "type": "request",
+    "intent": "schedule.meeting",
+    "payload": {"subject": "Dinner", "proposed_times": ["2026-02-13T19:00:00Z"]}
+  }'
+```
+
+**Check your mailbox:**
+
+```bash
+curl http://your-relay.example.com/mailbox/darren-assistant
+```
+
+The relay works with any deployment platform: Railway, Render, Fly.io, DigitalOcean, or any $5 VPS. Zero dependencies — just Node.js.
+
+See [`relay/README.md`](relay/README.md) for full API documentation and deployment guides.
+
 ### Run the Demo
 
 Watch two agents negotiate a dinner meeting in real-time:
