@@ -1,0 +1,37 @@
+{
+  "name": "ai2ai",
+  "version": "0.1.0",
+  "description": "The open protocol for AI agents to talk to each other",
+  "license": "MIT",
+  "author": "Darren Edwards",
+  "bin": {
+    "ai2ai": "./bin/ai2ai.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "protocol",
+    "ai2ai",
+    "openclaw",
+    "decentralized",
+    "agent-to-agent",
+    "multi-agent",
+    "communication"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DarrenEdwards111/ai2ai-protocol"
+  },
+  "homepage": "https://github.com/DarrenEdwards111/ai2ai-protocol#readme",
+  "bugs": {
+    "url": "https://github.com/DarrenEdwards111/ai2ai-protocol/issues"
+  }
+}
