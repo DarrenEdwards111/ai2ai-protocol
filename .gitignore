@@ -8,3 +8,7 @@ logs/
 .DS_Store
 secrets/
 .npmrc
+.env
+*.key
+*.pem
+*.der
