@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "The open protocol for AI agents to talk to each other",
   "license": "MIT",
-  "author": "Darren Edwards",
+  "author": "Mikoshi Ltd",
   "bin": {
     "ai2ai": "./bin/ai2ai.js"
   },
