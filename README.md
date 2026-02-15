@@ -296,3 +296,231 @@ Apache 2.0 — See [LICENSE](LICENSE)
 <p align="center">
   Built by <a href="https://mikoshi.co.uk">Mikoshi Ltd</a> 🦞
 </p>
+## 📋 Supported Intents
+
+| Intent | Description |
+|--------|-------------|
+| `schedule.meeting` | Propose times, negotiate, confirm |
+| `schedule.call` | Schedule a call |
+| `schedule.group` | Find time for multiple people |
+| `message.relay` | Pass a message to another human |
+| `info.request` | Ask for specific information |
+| `info.share` | Share information (one-way) |
+| `social.introduction` | Introduce two humans via agents |
+| `commerce.request` | Request a quote |
+| `commerce.offer` | Make an offer |
+| `commerce.accept` | Accept a deal |
+| `commerce.reject` | Decline a deal |
+
+Intents are extensible. Add your own.
+
+---
+
+## 🔒 Security
+
+- **Ed25519** message signing — every message is cryptographically signed
+- **X25519 + AES-256-GCM** end-to-end payload encryption
+- **Trust levels** — `none` → `known` → `trusted` (escalate over time)
+- **Human approval** — required for all actions by default
+- **Rate limiting** — per-agent, prevents spam
+- **Prompt injection protection** — structured JSON, not raw text execution
+
+---
+
+## 📨 Message Format
+
+Every AI2AI message is a JSON envelope:
+
+```json
+{
+  "ai2ai": "0.1",
+  "id": "uuid",
+  "timestamp": "2026-02-07T19:00:00Z",
+  "from": {
+    "agent": "darren-assistant",
+    "human": "Darren"
+  },
+  "to": {
+    "agent": "alex-assistant",
+    "human": "Alex"
+  },
+  "conversation": "conv-uuid",
+  "type": "request",
+  "intent": "schedule.meeting",
+  "payload": { ... },
+  "requires_human_approval": true,
+  "signature": "ed25519-signature"
+}
+```
+
+Message types: `ping` | `request` | `response` | `confirm` | `reject` | `inform`
+
+---
+
+## 🏗️ Architecture
+
+```
+┌──────────────────────┐         ┌──────────────────────┐
+│   Darren's Setup     │         │    Alex's Setup       │
+│                      │         │                       │
+│  Human ←→ OpenClaw   │         │  Human ←→ OpenClaw    │
+│           ↕          │  HTTP   │           ↕           │
+│     AI2AI Server ────┼────────→┤     AI2AI Server      │
+│     (port 18810)     │←────────┼     (port 18811)      │
+│           ↕          │         │           ↕           │
+│  Keys | Trust | Log  │         │  Keys | Trust | Log   │
+└──────────────────────┘         └──────────────────────┘
+```
+
+- **ai2ai-server.js** — HTTP endpoint, receives incoming messages
+- **ai2ai-client.js** — Sends outgoing messages
+- **ai2ai-handlers.js** — Intent processing (schedule, message, commerce, etc.)
+- **ai2ai-crypto.js** — Ed25519 signing & verification
+- **ai2ai-encryption.js** — X25519 + AES-256-GCM payload encryption
+- **ai2ai-trust.js** — Contact management & trust levels
+- **ai2ai-queue.js** — Disk-backed retry queue with exponential backoff
+- **ai2ai-discovery.js** — DNS, mDNS, .well-known agent discovery
+- **ai2ai-conversations.js** — Conversation state machine & expiry
+- **ai2ai-logger.js** — Structured audit logging
+- **ai2ai-bridge.js** — CLI tool for agents to use the protocol
+- **openclaw-integration.js** — Natural language command parsing
+
+---
+
+## 🎯 Real-World Scenarios
+
+Six runnable demos that prove AI2AI works for real multi-agent tasks. Each spins up local agents, completes a task end-to-end, and verifies the result.
+
+```bash
+# Run all demos
+node examples/demo-schedule.js      # Schedule Meeting
+node examples/demo-price-quote.js   # Price Comparison
+node examples/demo-research.js      # Collaborative Research
+node examples/demo-delegation.js    # Delegation Chain
+node examples/demo-info-exchange.js # Information Exchange
+node examples/demo-approval.js      # Human Approval Flow
+```
+
+### 1. 🗓️ Schedule Meeting
+Two agents negotiate a meeting time. Agent B checks its calendar and proposes slots, Agent A picks one, both confirm.
+```
+  [Alice] Requesting meeting with Bob: "Project Sync"
+  [Bob] Checking calendar... proposing 3 available slots
+  [Alice] Picking: 2026-03-10T14:00
+  ✅ Both agents agreed: "Project Sync" at 2026-03-10T14:00
+```
+
+### 2. 💰 Price Comparison
+A buyer agent sends quote requests to two merchant agents, collects responses, and picks the cheapest.
+```
+  [Merchant B] responding £28
+  [Merchant C] responding £32
+  ✅ Buyer selected merchant-b at £28
+```
+
+### 3. 🔬 Collaborative Research
+A researcher agent asks a specialist for technical analysis. The specialist returns structured data with sources, which gets incorporated into a report.
+```
+  [Specialist] Responding with structured answer (confidence: 0.95)
+  [Researcher] Report compiled: "LoRa Modulation Technical Brief" with 3 sections
+  ✅ Report includes specialist contribution
+```
+
+### 4. 🔗 Delegation Chain
+Manager → Coordinator → Worker. The coordinator can't fully complete the task, so it delegates a subtask to the worker, combines results, and returns to the manager.
+```
+  [Coordinator] delegating to worker
+  [Worker] Subtask complete
+  [Coordinator] Combining results and sending to manager
+  ✅ Delegation chain complete: manager ← coordinator ← worker
+```
+
+### 5. 📊 Information Exchange
+An agent requests sensor data twice, 2 seconds apart. Verifies both readings have different timestamps and values.
+```
+  [Sensor] Reading #1: 21.3°C at 2026-02-15T04:16:48Z
+  [Sensor] Reading #2: 21.6°C at 2026-02-15T04:16:50Z
+  ✅ Two readings received with different timestamps
+```
+
+### 6. 🔐 Human Approval Flow
+A purchase request for £500 triggers a human approval requirement (threshold: £100). Simulates the human approving before confirming.
+```
+  [Approver] ⚠️ Amount £500 exceeds £100 — human approval required
+  [Approver] 👤 Human reviewed and APPROVED
+  ✅ Human approval flow completed
+```
+
+---
+
+## 🧪 Tests
+
+```bash
+cd src/
+node test.js
+```
+
+```
+✅ Passed: 146
+❌ Failed: 0
+⏭️  Skipped: 1 (mDNS requires multicast network)
+```
+
+---
+
+## 🗺️ Roadmap
+
+- [x] Protocol spec v0.1
+- [x] Core implementation (server, client, handlers)
+- [x] Ed25519 signing
+- [x] X25519 encryption
+- [x] Trust management
+- [x] Message queuing with retry
+- [x] 11 intent handlers
+- [x] Network discovery (DNS, mDNS, well-known)
+- [x] Conversation state machine
+- [x] OpenClaw skill integration
+- [x] Two-agent live demo
+- [x] 146 tests passing
+- [ ] Agent directory / registry
+- [ ] ActivityPub bridge
+- [ ] Multi-runtime SDKs (Python, Go)
+- [ ] Mobile agent support
+- [ ] Payment rails for commerce intent
+- [ ] Hosted hub (managed endpoints)
+
+---
+
+## 🤔 FAQ
+
+**Q: Does this need powerful models?**
+A: No. qwen2:7b (free, local) handles structured JSON negotiation perfectly. But it works just as well with cloud APIs like Claude, GPT, or Gemini if you prefer. The protocol is model-agnostic — it's just JSON.
+
+**Q: How is this different from MCP or ACP?**
+A: MCP connects agents to tools. ACP connects agents to services. AI2AI connects agents to *each other*, acting as human representatives. It's the social layer.
+
+**Q: What about bad actors?**
+A: Human-in-the-loop by default. Your agent never commits without your approval. Same model as email — you can receive spam, but you don't have to open it.
+
+**Q: Can non-OpenClaw agents use this?**
+A: Yes. The protocol is a JSON HTTP API. Any agent framework can implement it.
+
+---
+
+## 📄 License
+
+Apache 2.0 — Build on it. Fork it. Make it better. Patent protected.
+
+---
+
+## 🌍 The Vision
+
+Email gave humans a decentralised way to communicate.
+The web gave humans a decentralised way to publish.
+**AI2AI gives AI agents a decentralised way to act on behalf of humans.**
+
+No company should own the protocol by which our digital representatives talk to each other.
+
+The protocol is the product. The simpler it is, the more people build on it.
+
+**Built in one night. Open forever. 🦞**

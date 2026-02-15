@@ -1,0 +1,57 @@
+{
+  "test-agent-1771128087304": {
+    "humanName": "Test Human",
+    "trustLevel": "trusted",
+    "lastSeen": "2026-02-15T04:01:27.305Z",
+    "blocked": true
+  },
+  "my-assistant": {
+    "humanName": "Human",
+    "node": "my-assistant-node",
+    "capabilities": [
+      "schedule.meeting",
+      "schedule.call",
+      "schedule.group",
+      "message.relay",
+      "info.request",
+      "info.share",
+      "social.introduction",
+      "commerce.request",
+      "commerce.offer",
+      "commerce.accept",
+      "commerce.reject"
+    ],
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAEZLXvE1B1UM8koD+6lAO7tRlQjgag5lmbXghK+uy1es=\n-----END PUBLIC KEY-----\n",
+    "timezone": "UTC",
+    "trustLevel": "none",
+    "x25519PublicKey": "MCowBQYDK2VuAyEABdGts3E1qKmJqRvGk8jqr47Gx6OuoEIX/ZSuTkBrk08=",
+    "lastSeen": "2026-02-15T04:10:06.898Z"
+  },
+  "unknown": {
+    "endpoint": "http://localhost:18801/ai2ai",
+    "lastInteraction": "2026-02-15T04:10:06.908Z",
+    "lastSeen": "2026-02-15T04:10:06.908Z"
+  },
+  "blocked-test-agent": {
+    "blocked": true,
+    "lastSeen": "2026-02-15T04:10:07.361Z"
+  },
+  "test-agent-1771128515150": {
+    "humanName": "Test Human",
+    "trustLevel": "trusted",
+    "lastSeen": "2026-02-15T04:08:35.153Z",
+    "blocked": true
+  },
+  "test-agent-1771128546410": {
+    "humanName": "Test Human",
+    "trustLevel": "trusted",
+    "lastSeen": "2026-02-15T04:09:06.412Z",
+    "blocked": true
+  },
+  "test-agent-1771128606341": {
+    "humanName": "Test Human",
+    "trustLevel": "trusted",
+    "lastSeen": "2026-02-15T04:10:06.343Z",
+    "blocked": true
+  }
+}
