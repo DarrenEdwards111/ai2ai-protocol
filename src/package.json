@@ -1,13 +1,24 @@
 {
   "name": "ai2ai-protocol",
-  "version": "0.1.0",
-  "description": "AI2AI — Open Agent Communication Protocol for OpenClaw",
-  "main": "ai2ai-server.js",
+  "version": "1.0.0",
+  "description": "Production-ready agent-to-agent communication protocol",
+  "main": "client.js",
   "scripts": {
     "start": "node ai2ai-server.js",
     "test": "node test.js"
   },
-  "keywords": ["ai2ai", "agent", "protocol", "openclaw", "decentralized"],
-  "license": "MIT",
-  "private": true
+  "keywords": ["ai2ai", "agent", "protocol", "communication", "multi-agent"],
+  "author": "Mikoshi Ltd <mikoshiuk@gmail.com>",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DarrenEdwards111/ai2ai-protocol.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DarrenEdwards111/ai2ai-protocol/issues"
+  },
+  "homepage": "https://github.com/DarrenEdwards111/ai2ai-protocol#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
