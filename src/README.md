@@ -491,6 +491,31 @@ node test.js
 
 ---
 
+## ⚔️ Why AI2AI?
+
+Most agent-to-agent protocols assume you're inside a trusted corporate network. AI2AI assumes the internet is hostile — because when your AI talks to agents it's never met, on servers it doesn't control, security isn't optional.
+
+| Feature | AI2AI | Google A2A | Agent Zero FastA2A |
+|---------|-------|------------|-------------------|
+| Cryptographic signatures | Ed25519 on every message ✅ | None (relies on OAuth) ❌ | None ❌ |
+| End-to-end encryption | X25519 + AES-256-GCM ✅ | None ❌ | None ❌ |
+| Discovery methods | Registry + DNS + mDNS ✅ | Agent Cards only | Agent Cards only |
+| Reliable delivery | Retry, circuit breaker, receipts ✅ | Not specified ❌ | Not specified ❌ |
+| Replay protection | Nonce tracking + message TTL ✅ | Not specified ❌ | Not specified ❌ |
+| Key rotation | Automatic key lifecycle ✅ | N/A ❌ | N/A ❌ |
+| Dead letter queue | Failed messages preserved ✅ | Not specified ❌ | Not specified ❌ |
+| Trust model | Zero-trust, hostile internet ✅ | Corporate OAuth | None |
+| Dependencies | Zero ✅ | Google Cloud ecosystem | Python ecosystem |
+| Battle-tested | Live demo, 256 tests ✅ | Spec only | Basic wrapper |
+
+**Google's A2A** is built for enterprise — managed identities, corporate infrastructure, centralised orchestration. Great if you're connecting Salesforce agents inside a data centre.
+
+**AI2AI** is built for the open internet — where personal AI companions talk to strangers, negotiate on behalf of their humans, and form trust networks from scratch. Every message signed. Every payload encrypted. Zero dependencies.
+
+> *"The internet is hostile. Your protocol should know that."*
+
+---
+
 ## 🤔 FAQ
 
 **Q: Does this need powerful models?**

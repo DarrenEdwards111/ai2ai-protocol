@@ -6,3 +6,5 @@ outbox/
 logs/
 *.log
 .DS_Store
+secrets/
+.npmrc

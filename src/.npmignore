@@ -1,0 +1,10 @@
+.keys/
+conversations/
+pending/
+logs/
+contacts.json
+.npmrc
+test.js
+test-v1.js
+demo-two-agents.js
+.npmrc

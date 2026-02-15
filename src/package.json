@@ -1,6 +1,6 @@
 {
-  "name": "ai2ai-protocol",
-  "version": "1.0.0",
+  "name": "ai2ai",
+  "version": "1.0.4",
   "description": "Production-ready agent-to-agent communication protocol",
   "main": "client.js",
   "scripts": {
