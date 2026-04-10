@@ -287,6 +287,11 @@ Recommended split:
 
 See [PAPERCLIP.md](PAPERCLIP.md) for the full integration architecture, phased build plan, and positioning.
 
+For the current narrow end-to-end plugin flow, AI2AI also includes:
+- `paperclip-inbox-writer.js`
+- scans conversation logs for `dev.claude_task` responses
+- writes response JSON into the Paperclip plugin inbox directory
+
 ## Integrations
 
 ### OpenClaw
