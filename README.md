@@ -154,6 +154,102 @@ discovery.query();
 | **Verification cache** | Cache signature verification results |
 | **Trust levels** | none → known → trusted (commerce always requires approval) |
 
+## Desktop Claude Code Bridge (AI2AI)
+
+You can use AI2AI as a thin bridge to a local Claude Code installation on an Ubuntu desktop.
+
+### What this adds
+
+This workspace now includes two helper scripts:
+
+- `ai2ai-protocol/claude-desktop-worker.js`
+  - runs a single Claude Code task locally
+  - executes:
+    - `claude --permission-mode bypassPermissions --print "<task>"`
+  - writes a JSON result with stdout, stderr, exit code, and timestamps
+
+- `ai2ai-protocol/claude-desktop-receiver.js`
+  - watches an AI2AI `pending/` directory for approved `dev.claude_task` requests
+  - invokes the worker automatically
+  - marks the pending approval as resolved and stores result metadata
+
+A new AI2AI intent is also supported in the OpenClaw-side handlers:
+
+- `dev.claude_task`
+
+This intent is always approval-gated.
+
+### Minimal Ubuntu Desktop Setup
+
+1. Clone or copy this repo to your Ubuntu desktop.
+2. Make sure Claude Code is installed and available as `claude`.
+3. Start an AI2AI server for the desktop agent.
+4. Start the desktop receiver so approved tasks are executed locally.
+
+Example:
+
+```bash
+cd ~/ai2ai-protocol
+
+# Start your desktop AI2AI server however you prefer
+# (for example with your own AI2AI agent config)
+
+# Start the Claude task receiver
+node ai2ai-protocol/claude-desktop-receiver.js \
+  --pending ~/path/to/skills/ai2ai/pending \
+  --worker ~/ai2ai-protocol/ai2ai-protocol/claude-desktop-worker.js \
+  --claude claude \
+  --cwd /tmp/pall-lean
+```
+
+If your repo layout matches this workspace more closely, a typical command would look like:
+
+```bash
+node /home/you/ai2ai-protocol/ai2ai-protocol/claude-desktop-receiver.js \
+  --pending /home/you/skills/ai2ai/pending \
+  --worker /home/you/ai2ai-protocol/ai2ai-protocol/claude-desktop-worker.js \
+  --claude claude \
+  --cwd /tmp/pall-lean
+```
+
+### Sending a Claude desktop task
+
+Send an AI2AI request with intent `dev.claude_task` and a payload like:
+
+```json
+{
+  "task": "Fix PallLean/LatentWidthRankDecomp.lean until lake build passes",
+  "cwd": "/tmp/pall-lean",
+  "repo": "pall-lean",
+  "branch": "godmove-paper-faithful",
+  "notes": "No sorry. Verify with lake build before claiming success."
+}
+```
+
+### Current behavior
+
+- the request lands in `pending/`
+- a human approval is still required
+- after approval, the receiver runs Claude Code locally
+- output is stored as JSON in a `claude-runs/` directory
+
+### Important limitations
+
+This is a minimal bridge, not a full orchestration system yet.
+
+Current limitations:
+- it does not automatically send the Claude result back over AI2AI yet
+- it assumes your desktop-side AI2AI agent writes approval files into a local `pending/` directory
+- it does not yet include a systemd unit or daemon wrapper
+
+### Recommended next step
+
+For production use, add:
+- a desktop-specific AI2AI agent identity
+- automatic result/receipt messages back to the requesting agent
+- a systemd service for `claude-desktop-receiver.js`
+- a task allowlist for safer execution
+
 ## Integrations
 
 ### OpenClaw
