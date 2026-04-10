@@ -232,23 +232,47 @@ Send an AI2AI request with intent `dev.claude_task` and a payload like:
 - a human approval is still required
 - after approval, the receiver runs Claude Code locally
 - output is stored as JSON in a `claude-runs/` directory
+- the receiver now attempts to send the Claude result back over AI2AI as a `response` on the same conversation
+
+### How result return works
+
+The receiver loads your desktop AI2AI skill modules, looks up the original sender in contacts, and sends a `dev.claude_task` response payload containing:
+
+- `ok`
+- `exitCode`
+- `cwd`
+- `prompt`
+- `stdout`
+- `stderr`
+- `finishedAt`
+
+To enable this, pass the desktop skill directory explicitly if needed:
+
+```bash
+node ai2ai-protocol/claude-desktop-receiver.js \
+  --pending /home/you/skills/ai2ai/pending \
+  --skillDir /home/you/skills/ai2ai \
+  --worker /home/you/ai2ai-protocol/ai2ai-protocol/claude-desktop-worker.js \
+  --claude claude \
+  --cwd /tmp/pall-lean
+```
 
 ### Important limitations
 
-This is a minimal bridge, not a full orchestration system yet.
+This is still a lightweight bridge, not a full orchestration system.
 
 Current limitations:
-- it does not automatically send the Claude result back over AI2AI yet
 - it assumes your desktop-side AI2AI agent writes approval files into a local `pending/` directory
+- it sends the result back as a plain AI2AI response, but does not yet manage rich delivery receipts or resumable task state
 - it does not yet include a systemd unit or daemon wrapper
 
 ### Recommended next step
 
 For production use, add:
 - a desktop-specific AI2AI agent identity
-- automatic result/receipt messages back to the requesting agent
 - a systemd service for `claude-desktop-receiver.js`
 - a task allowlist for safer execution
+- truncation/attachment handling for very large Claude outputs
 
 ## Integrations
 

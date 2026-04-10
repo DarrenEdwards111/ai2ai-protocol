@@ -2,6 +2,11 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const crypto = require('crypto');
+
+function reqFrom(baseDir, mod) {
+  return require(path.join(baseDir, mod));
+}
 
 function parseArgs(argv) {
   const args = {};
@@ -44,6 +49,38 @@ async function runWorker(workerPath, task, cwd, outPath, claudePath) {
   });
 }
 
+async function sendResultBack(data, opts, resultJson) {
+  const envelope = data.envelope || {};
+  const originalFrom = envelope.from || {};
+  const contact = opts.getContact ? opts.getContact(originalFrom.agent) : null;
+  if (!contact?.endpoint || !opts.createEnvelope || !opts.sendMessage) return false;
+
+  const summary = {
+    ok: resultJson.ok,
+    exitCode: resultJson.exitCode,
+    cwd: resultJson.cwd,
+    prompt: resultJson.prompt,
+    stdout: resultJson.stdout,
+    stderr: resultJson.stderr,
+    finishedAt: resultJson.finishedAt,
+  };
+
+  const reply = opts.createEnvelope({
+    to: {
+      agent: originalFrom.agent,
+      human: originalFrom.human || originalFrom.agent,
+      node: originalFrom.node || 'unknown',
+    },
+    type: 'response',
+    intent: 'dev.claude_task',
+    conversationId: envelope.conversation || crypto.randomUUID(),
+    payload: summary,
+  });
+
+  await opts.sendMessage(contact.endpoint, reply, { queue: true });
+  return true;
+}
+
 async function processOne(filePath, opts) {
   const data = readJson(filePath);
   const envelope = data.envelope || {};
@@ -51,6 +88,8 @@ async function processOne(filePath, opts) {
 
   if (envelope.intent !== 'dev.claude_task') return false;
   if (data.resolved) return false;
+  if (data.approved === false) return false;
+  if (data.approved !== true && !data.desktopClaudeForceRun) return false;
 
   const task = payload.task;
   const cwd = payload.cwd || opts.cwd || process.cwd();
@@ -61,6 +100,15 @@ async function processOne(filePath, opts) {
 
   console.log(`🧠 Running Claude task ${jobId} in ${cwd}`);
   const exitCode = await runWorker(opts.worker, task, cwd, outPath, opts.claude);
+  const resultJson = readJson(outPath);
+
+  let sentBack = false;
+  try {
+    sentBack = await sendResultBack(data, opts, resultJson);
+  } catch (err) {
+    resultJson.returnSendError = err.message;
+    writeJson(outPath, resultJson);
+  }
 
   data.resolved = true;
   data.resolvedAt = new Date().toISOString();
@@ -68,10 +116,11 @@ async function processOne(filePath, opts) {
     ok: exitCode === 0,
     exitCode,
     resultPath: outPath,
+    resultSentBack: sentBack,
   };
   writeJson(filePath, data);
 
-  console.log(`✅ Finished ${jobId}, result: ${outPath}`);
+  console.log(`✅ Finished ${jobId}, result: ${outPath}, sentBack=${sentBack}`);
   return true;
 }
 
@@ -84,8 +133,20 @@ async function main() {
   const once = args.once === true;
   const intervalMs = Number(args.intervalMs || 5000);
   const outDir = args.outDir;
+  const skillDir = args.skillDir || path.join(process.cwd(), 'skills', 'ai2ai');
 
-  const opts = { worker, claude, cwd, outDir };
+  const client = reqFrom(skillDir, 'ai2ai-client.js');
+  const trust = reqFrom(skillDir, 'ai2ai-trust.js');
+
+  const opts = {
+    worker,
+    claude,
+    cwd,
+    outDir,
+    sendMessage: client.sendMessage,
+    createEnvelope: client.createEnvelope,
+    getContact: trust.getContact,
+  };
 
   async function sweep() {
     const files = findPending(pendingDir);
