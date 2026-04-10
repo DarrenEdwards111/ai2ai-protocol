@@ -274,6 +274,19 @@ For production use, add:
 - a task allowlist for safer execution
 - truncation/attachment handling for very large Claude outputs
 
+## Orchestrator Integration: Paperclip
+
+AI2AI pairs naturally with orchestration systems like Paperclip.
+
+- **Paperclip** handles internal company orchestration: goals, tickets, org charts, budgets, governance, recurring work.
+- **AI2AI** handles external communication between agents, machines, and companies, with trust and approval in the loop.
+
+Recommended split:
+- **internal orchestration** → Paperclip
+- **external/inter-agent communication** → AI2AI
+
+See [PAPERCLIP.md](PAPERCLIP.md) for the full integration architecture, phased build plan, and positioning.
+
 ## Integrations
 
 ### OpenClaw
