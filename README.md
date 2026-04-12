@@ -222,9 +222,20 @@ Send an AI2AI request with intent `dev.claude_task` and a payload like:
   "cwd": "/tmp/pall-lean",
   "repo": "pall-lean",
   "branch": "godmove-paper-faithful",
-  "notes": "No sorry. Verify with lake build before claiming success."
+  "notes": "No sorry. Verify with lake build before claiming success.",
+  "commandEnvelope": {
+    "kind": "ai2ai.command",
+    "version": "1",
+    "command": "dev.claude_task",
+    "instructions": "Fix PallLean/LatentWidthRankDecomp.lean until lake build passes",
+    "cwd": "/tmp/pall-lean",
+    "repo": "pall-lean",
+    "branch": "godmove-paper-faithful"
+  }
 }
 ```
+
+The `commandEnvelope` is the machine-readable command contract. Receivers should prefer it over trying to infer executable intent from arbitrary free text.
 
 ### Current behavior
 
@@ -492,6 +503,34 @@ Every AI2AI message is a JSON envelope:
 ```
 
 Message types: `ping` | `request` | `response` | `confirm` | `reject` | `inform`
+
+### AI2AI command envelope convention
+
+When one agent wants another agent or runtime to obey a concrete structured command, put a command object inside the message payload instead of relying only on prose.
+
+Example:
+
+```json
+{
+  "task": "Fix the build",
+  "commandEnvelope": {
+    "kind": "ai2ai.command",
+    "version": "1",
+    "command": "dev.claude_task",
+    "instructions": "Fix the build",
+    "cwd": "/tmp/pall-lean"
+  }
+}
+```
+
+Recommended fields:
+- `kind`: must be `ai2ai.command`
+- `version`: schema version, currently `1`
+- `command`: canonical command or intent, for example `dev.claude_task`
+- `instructions`: human-readable execution instructions
+- optional execution metadata such as `cwd`, `repo`, `branch`, `issueId`, `companyId`, or `source`
+
+Rule of thumb: free text can explain, but `commandEnvelope` is what should be obeyed.
 
 ---
 

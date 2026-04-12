@@ -57,8 +57,8 @@ This gives a clean split:
 
 Flow:
 1. Paperclip creates a task.
-2. An AI2AI adapter/plugin sends a request such as `dev.claude_task`.
-3. A remote desktop bridge or remote agent executes the task.
+2. An AI2AI adapter/plugin sends a request such as `dev.claude_task` with a machine-readable `commandEnvelope`.
+3. A remote desktop bridge or remote agent obeys the structured command envelope.
 4. The result comes back over AI2AI.
 5. Paperclip updates the ticket and task state.
 
@@ -88,6 +88,7 @@ This makes Paperclip the local operations kernel for agent work.
 - `dev.claude_task`
 - `dev.codex_task`
 - `dev.openclaw_task`
+- machine-readable `commandEnvelope` payload convention for obeyable commands
 - result/receipt messages
 - trust and approval rules
 
