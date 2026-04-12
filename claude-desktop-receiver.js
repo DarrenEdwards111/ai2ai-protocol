@@ -37,6 +37,52 @@ function findPending(dir) {
     .map(f => path.join(dir, f));
 }
 
+function extractClaudeTaskSpec(payload = {}) {
+  const commandEnvelope = payload.commandEnvelope;
+  if (commandEnvelope && typeof commandEnvelope === 'object') {
+    if (commandEnvelope.kind !== 'ai2ai.command') {
+      throw new Error('Unsupported commandEnvelope kind');
+    }
+    if (commandEnvelope.command !== 'dev.claude_task') {
+      throw new Error(`Unsupported commandEnvelope command: ${commandEnvelope.command}`);
+    }
+
+    const instructions = typeof commandEnvelope.instructions === 'string'
+      ? commandEnvelope.instructions.trim()
+      : '';
+    const cwd = typeof commandEnvelope.cwd === 'string' && commandEnvelope.cwd.trim()
+      ? commandEnvelope.cwd.trim()
+      : undefined;
+
+    if (!instructions) {
+      throw new Error('commandEnvelope.instructions is required for dev.claude_task');
+    }
+
+    return {
+      prompt: instructions,
+      cwd,
+      commandEnvelope,
+      source: 'commandEnvelope',
+    };
+  }
+
+  const task = typeof payload.task === 'string' ? payload.task.trim() : '';
+  const cwd = typeof payload.cwd === 'string' && payload.cwd.trim()
+    ? payload.cwd.trim()
+    : undefined;
+
+  if (!task) {
+    throw new Error('payload.task is required when commandEnvelope is absent');
+  }
+
+  return {
+    prompt: task,
+    cwd,
+    commandEnvelope: null,
+    source: 'legacy-task',
+  };
+}
+
 async function runWorker(workerPath, task, cwd, outPath, claudePath) {
   return new Promise((resolve) => {
     const args = [workerPath, '--prompt', task, '--out', outPath];
@@ -49,7 +95,7 @@ async function runWorker(workerPath, task, cwd, outPath, claudePath) {
   });
 }
 
-async function sendResultBack(data, opts, resultJson) {
+async function sendResultBack(data, opts, resultJson, taskSpec) {
   const envelope = data.envelope || {};
   const originalFrom = envelope.from || {};
   const contact = opts.getContact ? opts.getContact(originalFrom.agent) : null;
@@ -63,7 +109,12 @@ async function sendResultBack(data, opts, resultJson) {
     stdout: resultJson.stdout,
     stderr: resultJson.stderr,
     finishedAt: resultJson.finishedAt,
+    obeyedVia: taskSpec?.source || 'unknown',
   };
+
+  if (taskSpec?.commandEnvelope) {
+    summary.commandEnvelope = taskSpec.commandEnvelope;
+  }
 
   const reply = opts.createEnvelope({
     to: {
@@ -91,8 +142,9 @@ async function processOne(filePath, opts) {
   if (data.approved === false) return false;
   if (data.approved !== true && !data.desktopClaudeForceRun) return false;
 
-  const task = payload.task;
-  const cwd = payload.cwd || opts.cwd || process.cwd();
+  const taskSpec = extractClaudeTaskSpec(payload);
+  const task = taskSpec.prompt;
+  const cwd = taskSpec.cwd || opts.cwd || process.cwd();
   const jobId = envelope.id || path.basename(filePath, '.json');
   const outDir = opts.outDir || path.join(path.dirname(filePath), '..', 'claude-runs');
   fs.mkdirSync(outDir, { recursive: true });
@@ -101,10 +153,15 @@ async function processOne(filePath, opts) {
   console.log(`🧠 Running Claude task ${jobId} in ${cwd}`);
   const exitCode = await runWorker(opts.worker, task, cwd, outPath, opts.claude);
   const resultJson = readJson(outPath);
+  resultJson.obeyedVia = taskSpec.source;
+  if (taskSpec.commandEnvelope) {
+    resultJson.commandEnvelope = taskSpec.commandEnvelope;
+    writeJson(outPath, resultJson);
+  }
 
   let sentBack = false;
   try {
-    sentBack = await sendResultBack(data, opts, resultJson);
+    sentBack = await sendResultBack(data, opts, resultJson, taskSpec);
   } catch (err) {
     resultJson.returnSendError = err.message;
     writeJson(outPath, resultJson);
@@ -117,6 +174,7 @@ async function processOne(filePath, opts) {
     exitCode,
     resultPath: outPath,
     resultSentBack: sentBack,
+    obeyedVia: taskSpec.source,
   };
   writeJson(filePath, data);
 

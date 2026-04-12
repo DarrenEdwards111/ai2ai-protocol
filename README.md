@@ -241,9 +241,10 @@ The `commandEnvelope` is the machine-readable command contract. Receivers should
 
 - the request lands in `pending/`
 - a human approval is still required
-- after approval, the receiver runs Claude Code locally
+- after approval, the receiver prefers `payload.commandEnvelope` when present and only falls back to legacy `payload.task` when the structured command is absent
+- for `dev.claude_task`, the receiver requires `commandEnvelope.kind = "ai2ai.command"`, `commandEnvelope.command = "dev.claude_task"`, and non-empty `commandEnvelope.instructions`
 - output is stored as JSON in a `claude-runs/` directory
-- the receiver now attempts to send the Claude result back over AI2AI as a `response` on the same conversation
+- the receiver now attempts to send the Claude result back over AI2AI as a `response` on the same conversation, echoing the obeyed command envelope when available
 
 ### How result return works
 
@@ -256,6 +257,8 @@ The receiver loads your desktop AI2AI skill modules, looks up the original sende
 - `stdout`
 - `stderr`
 - `finishedAt`
+- `obeyedVia` (`commandEnvelope` or `legacy-task`)
+- `commandEnvelope` when a structured command was obeyed
 
 To enable this, pass the desktop skill directory explicitly if needed:
 
