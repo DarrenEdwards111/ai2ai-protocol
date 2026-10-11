@@ -1,3 +1,5 @@
+> **Unreleased security upgrade:** wire version 1.1 is breaking. See [migration and normative security rules](docs/HARDENING-1.1.md). Older examples are historical where they conflict.
+
 # AI2AI — Open Agent Communication Protocol
 ### Version 0.2 (Draft)
 ### Author: D & Assistant

@@ -1,0 +1,8 @@
+{
+  "name": "ai2ai-protocol-workspace",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/security.test.js",
+    "test:features": "node src/test-v1.js"
+  }
+}

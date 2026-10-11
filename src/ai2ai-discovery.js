@@ -342,7 +342,7 @@ function generateWellKnownJson(config) {
   const keys = loadOrCreateKeys();
 
   return {
-    ai2ai: '0.1',
+    ai2ai: '1.1',
     endpoint: config.endpoint || `http://localhost:${config.port || 18800}/ai2ai`,
     agent: config.agentName || process.env.AI2AI_AGENT_NAME || 'my-assistant',
     human: config.humanName || process.env.AI2AI_HUMAN_NAME || 'Human',

@@ -74,44 +74,8 @@ function getFingerprint(publicKeyPem) {
  * Sign a message envelope
  * Signs the canonical fields to produce a deterministic signature.
  */
-function signMessage(envelope, privateKeyPem) {
-  const payload = JSON.stringify({
-    id: envelope.id,
-    timestamp: envelope.timestamp,
-    from: envelope.from,
-    to: envelope.to,
-    conversation: envelope.conversation,
-    type: envelope.type,
-    intent: envelope.intent,
-    payload: envelope.payload,
-  });
-
-  const privateKey = crypto.createPrivateKey(privateKeyPem);
-  return crypto.sign(null, Buffer.from(payload), privateKey).toString('base64');
-}
-
-/**
- * Verify a message signature
- */
-function verifyMessage(envelope, signature, publicKeyPem) {
-  const payload = JSON.stringify({
-    id: envelope.id,
-    timestamp: envelope.timestamp,
-    from: envelope.from,
-    to: envelope.to,
-    conversation: envelope.conversation,
-    type: envelope.type,
-    intent: envelope.intent,
-    payload: envelope.payload,
-  });
-
-  try {
-    const publicKey = crypto.createPublicKey(publicKeyPem);
-    return crypto.verify(null, Buffer.from(payload), publicKey, Buffer.from(signature, 'base64'));
-  } catch {
-    return false;
-  }
-}
+function signMessage(envelope, privateKeyPem) { return require('./wire').sign(envelope, privateKeyPem); }
+function verifyMessage(envelope, signature, publicKeyPem) { return require('./wire').verify(envelope, signature, publicKeyPem); }
 
 module.exports = {
   generateKeyPair,

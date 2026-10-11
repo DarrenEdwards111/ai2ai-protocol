@@ -359,7 +359,8 @@ async function handleHumanReply(approvalId, humanReply) {
     return { success: false, message: 'Approval not found or already resolved.' };
   }
 
-  const isApproved = !['decline', 'reject', 'no', 'deny'].includes(humanReply.toLowerCase().trim());
+  const isApproved = require('./wire').approvalDecision(humanReply);
+  if (isApproved === null) return {success:false,message:'Approval still pending: reply explicitly approve or reject.'};
 
   // Resolve the approval
   resolvePendingApproval(pending.envelope?.id || approvalId, isApproved, humanReply);

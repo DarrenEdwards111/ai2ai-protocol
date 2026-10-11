@@ -11,6 +11,7 @@
  */
 
 const fs = require('fs');
+const {safePath} = require('./wire');
 const path = require('path');
 const logger = require('./ai2ai-logger');
 
@@ -50,7 +51,7 @@ const DEFAULT_CONFIG = {
  * Conversation metadata file path
  */
 function metaPath(conversationId) {
-  return path.join(CONVERSATIONS_DIR, `${conversationId}.meta.json`);
+  return safePath(CONVERSATIONS_DIR, conversationId, '.meta.json');
 }
 
 /**
@@ -195,7 +196,7 @@ function expireConversations() {
  * Get a pending approval
  */
 function getPendingApproval(approvalId) {
-  const pendingPath = path.join(PENDING_DIR, `${approvalId}.json`);
+  const pendingPath = safePath(PENDING_DIR, approvalId, '.json');
   if (!fs.existsSync(pendingPath)) return null;
   try {
     return JSON.parse(fs.readFileSync(pendingPath, 'utf-8'));
@@ -224,7 +225,7 @@ function listPendingApprovals() {
  * Resolve a pending approval (approve or reject)
  */
 function resolvePendingApproval(approvalId, approved, humanReply = null) {
-  const pendingPath = path.join(PENDING_DIR, `${approvalId}.json`);
+  const pendingPath = safePath(PENDING_DIR, approvalId, '.json');
   if (!fs.existsSync(pendingPath)) return null;
 
   const pending = JSON.parse(fs.readFileSync(pendingPath, 'utf-8'));
@@ -247,7 +248,7 @@ function resolvePendingApproval(approvalId, approved, humanReply = null) {
  * Remove a resolved pending approval
  */
 function removePendingApproval(approvalId) {
-  const pendingPath = path.join(PENDING_DIR, `${approvalId}.json`);
+  const pendingPath = safePath(PENDING_DIR, approvalId, '.json');
   if (fs.existsSync(pendingPath)) {
     fs.unlinkSync(pendingPath);
   }

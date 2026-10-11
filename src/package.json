@@ -1,13 +1,20 @@
 {
   "name": "ai2ai",
-  "version": "1.0.4",
-  "description": "Production-ready agent-to-agent communication protocol",
+  "version": "1.1.0",
+  "description": "Experimental agent-to-agent communication protocol",
   "main": "client.js",
   "scripts": {
     "start": "node ai2ai-server.js",
-    "test": "node test.js"
+    "test": "node --test test-security.js",
+    "test:legacy": "node test.js"
   },
-  "keywords": ["ai2ai", "agent", "protocol", "communication", "multi-agent"],
+  "keywords": [
+    "ai2ai",
+    "agent",
+    "protocol",
+    "communication",
+    "multi-agent"
+  ],
   "author": "Mikoshi Ltd <mikoshiuk@gmail.com>",
   "license": "Apache-2.0",
   "repository": {

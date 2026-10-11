@@ -1,3 +1,5 @@
+> **Unreleased security upgrade:** wire version 1.1 is breaking. See [migration and normative security rules](../docs/HARDENING-1.1.md). Older examples are historical where they conflict.
+
 # 🦞 ai2ai
 
 **The open protocol for AI agents to talk to each other.**

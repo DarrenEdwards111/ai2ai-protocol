@@ -31,8 +31,9 @@ function createEnvelope({ to, type, intent, payload, conversationId, requiresHum
   const toField = Array.isArray(to) ? to : to;
 
   const envelope = {
-    ai2ai: '0.1',
+    ai2ai: '1.1',
     id: crypto.randomUUID(),
+    nonce: crypto.randomBytes(16).toString('hex'),
     timestamp: new Date().toISOString(),
     from: {
       agent: CONFIG.agentName,
@@ -53,6 +54,7 @@ function createEnvelope({ to, type, intent, payload, conversationId, requiresHum
   }
 
   // Sign the message
+  envelope.expiresAt = new Date(Date.parse(envelope.timestamp)+86400000).toISOString();
   envelope.signature = signMessage(envelope, keys.privateKey);
 
   return envelope;
@@ -89,7 +91,7 @@ async function rawSend(endpoint, envelope) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-AI2AI-Version': '0.1',
+      'X-AI2AI-Version': '1.1',
     },
     body: JSON.stringify(envelope),
     signal: AbortSignal.timeout(30000),
@@ -116,6 +118,7 @@ async function sendMessage(endpoint, envelope, options = {}) {
 
   // Optionally encrypt
   maybeEncryptEnvelope(envelope);
+  envelope.signature = signMessage(envelope, loadOrCreateKeys().privateKey);
 
   // Log outgoing
   logger.logOutgoing(envelope);
@@ -189,7 +192,7 @@ async function ping(endpoint) {
       timezone: CONFIG.timezone,
       availability_hours: '09:00-22:00',
       model_info: 'local',
-      protocol_versions: ['0.1'],
+      protocol_versions: ['1.1'],
       public_key: keys.publicKey,
       fingerprint: getFingerprint(keys.publicKey),
       x25519_public_key: x25519Keys.publicKeyDer,

@@ -19,8 +19,9 @@ function createEnvelope({ to, type, intent, payload, conversationId }) {
   const keys = loadOrCreateKeys();
 
   const envelope = {
-    ai2ai: '0.1',
+    ai2ai: '1.1',
     id: crypto.randomUUID(),
+    nonce: crypto.randomBytes(16).toString('hex'),
     timestamp: new Date().toISOString(),
     from: {
       agent: config.agentName,
@@ -35,6 +36,7 @@ function createEnvelope({ to, type, intent, payload, conversationId }) {
     requires_human_approval: true,
   };
 
+  envelope.expiresAt = new Date(Date.parse(envelope.timestamp)+86400000).toISOString();
   envelope.signature = signMessage(envelope, keys.privateKey);
   return envelope;
 }
@@ -57,7 +59,7 @@ function createPingEnvelope() {
       languages: ['en'],
       timezone: config.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       model_info: 'local',
-      protocol_versions: ['0.1'],
+      protocol_versions: ['1.1'],
       public_key: keys.publicKey,
       fingerprint: getFingerprint(keys.publicKey),
     },
@@ -83,7 +85,7 @@ function sendRequest(endpoint, envelope) {
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(body),
-        'X-AI2AI-Version': '0.1',
+        'X-AI2AI-Version': '1.1',
       },
       timeout: 30000,
     };

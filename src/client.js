@@ -19,6 +19,8 @@
 
 const { EventEmitter } = require('events');
 const http = require('http');
+const https = require('https');
+const wire = require('./wire');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -75,6 +77,8 @@ class AI2AI extends EventEmitter {
     this.contacts = new Map();
 
     // Server
+    this.inbox = new wire.Inbox(path.join(this.dataDir, 'inbox'));
+    this.pendingApprovals = new Map();
     this.server = null;
     this._started = false;
   }
@@ -204,7 +208,7 @@ class AI2AI extends EventEmitter {
 
   _createEnvelope(targetId, type, intent, payload, opts = {}) {
     const envelope = {
-      ai2ai: '1.0',
+      ai2ai: wire.VERSION,
       id: crypto.randomUUID(),
       nonce: this.nonceTracker.generate(),
       timestamp: new Date().toISOString(),
@@ -218,7 +222,7 @@ class AI2AI extends EventEmitter {
     };
 
     if (opts.ttl || this.messageTTL) {
-      envelope.expiresAt = new Date(Date.now() + (opts.ttl || this.messageTTL)).toISOString();
+      envelope.expiresAt = new Date(Date.parse(envelope.timestamp) + (opts.ttl || this.messageTTL)).toISOString();
     }
 
     // Sign
@@ -279,12 +283,14 @@ class AI2AI extends EventEmitter {
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(body),
-          'X-AI2AI-Version': '1.0',
+          'X-AI2AI-Version': wire.VERSION,
         },
         timeout: this.timeout,
       };
 
-      const req = http.request(opts, (res) => {
+      if (!['http:', 'https:'].includes(url.protocol)) return reject(new Error('Unsupported transport'));
+      opts.protocol = url.protocol;
+      const req = (url.protocol === 'https:' ? https : http).request(opts, (res) => {
         let data = '';
         res.on('data', chunk => { data += chunk; });
         res.on('end', () => {
@@ -312,7 +318,7 @@ class AI2AI extends EventEmitter {
 
     if (req.method === 'GET' && req.url === '/ai2ai/health') {
       res.writeHead(200);
-      res.end(JSON.stringify({ status: 'online', agent: this.name, protocol: '1.0' }));
+      res.end(JSON.stringify({ status: 'online', agent: this.name, protocol: wire.VERSION }));
       return;
     }
 
@@ -328,46 +334,25 @@ class AI2AI extends EventEmitter {
     let envelope;
     try { envelope = JSON.parse(body); } catch { res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid JSON' })); return; }
 
-    if (!envelope.ai2ai || !envelope.type || !envelope.from) {
-      res.writeHead(400);
-      res.end(JSON.stringify({ error: 'Invalid AI2AI envelope' }));
-      return;
+    const error = wire.validate(envelope, this.name, this.messageTTL);
+    const reject = (code, reason) => { res.writeHead(code); res.end(JSON.stringify({status:'rejected',reason})); };
+    if (error) return reject(400,error);
+    const fromAgent = envelope.from.agent;
+    const contact = this.contacts.get(fromAgent);
+    if (!contact?.publicKey || !wire.verify(envelope,envelope.signature,contact.publicKey)) return reject(403,'invalid_or_unknown_signature');
+    if (this.blocklist.isBlocked(fromAgent)) return reject(403,'blocked');
+    let delivery;
+    try { delivery = this.inbox.reserve(envelope); } catch(e) { return reject(409,e.message); }
+    if (delivery.duplicate) { res.writeHead(200);res.end(JSON.stringify(delivery.result));return; }
+    if (!this.rateLimiter.allow(fromAgent)) { const result={status:'rejected',reason:'rate_limited'};delivery.finish(result);return reject(429,'rate_limited'); }
+    const needsApproval = ['message','request'].includes(envelope.type) && (envelope.requires_human_approval || (envelope.intent || '').startsWith('commerce.') || contact.trustLevel !== 'trusted');
+    if (needsApproval) {
+      this.pendingApprovals.set(envelope.id,envelope);
+      fs.writeFileSync(wire.safePath(this.inbox.dir,envelope.id,'.pending.json'),JSON.stringify(envelope),{mode:0o600});
+      const result={status:'pending_approval',id:envelope.id};delivery.finish(result);
+      this.emit('approval:required',envelope);
+      res.writeHead(200);res.end(JSON.stringify(result));return;
     }
-
-    const fromAgent = envelope.from?.agent;
-
-    // Security checks
-    if (this.blocklist.isBlocked(fromAgent)) {
-      res.writeHead(403);
-      res.end(JSON.stringify({ status: 'rejected', reason: 'blocked' }));
-      return;
-    }
-
-    if (!this.rateLimiter.allow(fromAgent)) {
-      res.writeHead(429);
-      res.end(JSON.stringify({ status: 'rejected', reason: 'rate_limited' }));
-      return;
-    }
-
-    if (isMessageExpired(envelope, this.messageTTL)) {
-      res.writeHead(400);
-      res.end(JSON.stringify({ status: 'rejected', reason: 'message_expired' }));
-      return;
-    }
-
-    if (envelope.nonce && this.nonceTracker.isReplay(envelope.nonce)) {
-      res.writeHead(400);
-      res.end(JSON.stringify({ status: 'rejected', reason: 'replay_detected' }));
-      return;
-    }
-
-    // Deduplication
-    if (this.deduplicator.isDuplicate(envelope.id)) {
-      res.writeHead(200);
-      res.end(JSON.stringify({ status: 'duplicate', id: envelope.id }));
-      return;
-    }
-
     // Emit events
     if (envelope.type === 'message' || envelope.type === 'request') {
       this.emit('message', envelope.payload, envelope.from, envelope);
@@ -387,6 +372,7 @@ class AI2AI extends EventEmitter {
       this.emit('receipt:send', envelope.id, envelope.from);
     }
 
+    delivery.finish({status:'ok',id:envelope.id,agent:this.name});
     res.writeHead(200);
     res.end(JSON.stringify({
       status: 'ok',
@@ -415,20 +401,20 @@ class AI2AI extends EventEmitter {
     return { publicKey, privateKey };
   }
 
-  _sign(envelope) {
-    const payload = JSON.stringify({
-      id: envelope.id,
-      timestamp: envelope.timestamp,
-      from: envelope.from,
-      to: envelope.to,
-      conversation: envelope.conversation,
-      type: envelope.type,
-      intent: envelope.intent,
-      payload: envelope.payload,
-    });
-    const privateKey = crypto.createPrivateKey(this._keys.privateKey);
-    return crypto.sign(null, Buffer.from(payload), privateKey).toString('base64');
+  resolveApproval(id, approved) {
+    if (typeof approved !== 'boolean') throw new Error('Explicit boolean approval required');
+    const file=wire.safePath(this.inbox.dir,id,'.pending.json');
+    const envelope=this.pendingApprovals.get(id) || (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file,'utf8')) : null);
+    if (!envelope) throw new Error('No pending approval');
+    const error=wire.validate(envelope,this.name,this.messageTTL);
+    if (approved && error) throw new Error(error);
+    const contact=this.contacts.get(envelope.from.agent);
+    if (approved && (this.blocklist.isBlocked(envelope.from.agent) || !contact?.publicKey || !wire.verify(envelope,envelope.signature,contact.publicKey))) throw new Error('Sender no longer trusted/authenticated');
+    // Consume before dispatch; never dispatch the same human decision twice.
+    fs.unlinkSync(file);this.pendingApprovals.delete(id);
+    if (approved) { this.emit('message',envelope.payload,envelope.from,envelope);if (envelope.type==='request') this.emit('request',envelope.intent,envelope.payload,envelope.from,envelope); }
+    return {status:approved?'approved':'rejected',id};
   }
+  _sign(envelope) { return wire.sign(envelope,this._keys.privateKey); }
 }
-
 module.exports = { AI2AI };

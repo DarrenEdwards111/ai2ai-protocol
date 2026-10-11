@@ -7,6 +7,7 @@
  */
 
 const http = require('http');
+const wire = require('./wire');
 const fs = require('fs');
 const path = require('path');
 const { loadOrCreateKeys, verifyMessage, getFingerprint } = require('./ai2ai-crypto');
@@ -18,6 +19,7 @@ const { generateWellKnownJson } = require('./ai2ai-discovery');
 const { resumeQueue, rawSend } = require('./ai2ai-queue');
 const logger = require('./ai2ai-logger');
 
+const inbox = new wire.Inbox(require('path').join(__dirname,'inbox'));
 const PORT = parseInt(process.env.AI2AI_PORT) || 18800;
 const CONVERSATIONS_DIR = path.join(__dirname, 'conversations');
 const PENDING_DIR = path.join(__dirname, 'pending');
@@ -48,7 +50,7 @@ function checkRateLimit(agentId) {
  * Save a message to conversation history
  */
 function saveToConversation(conversationId, message) {
-  const convPath = path.join(CONVERSATIONS_DIR, `${conversationId}.jsonl`);
+  const convPath = wire.safePath(CONVERSATIONS_DIR, conversationId, '.jsonl');
   fs.appendFileSync(convPath, JSON.stringify(message) + '\n');
 }
 
@@ -56,7 +58,7 @@ function saveToConversation(conversationId, message) {
  * Save a pending approval request
  */
 function savePendingApproval(id, data) {
-  const pendingPath = path.join(PENDING_DIR, `${id}.json`);
+  const pendingPath = wire.safePath(PENDING_DIR, id, '.json');
   fs.writeFileSync(pendingPath, JSON.stringify(data, null, 2));
 }
 
@@ -90,6 +92,17 @@ function maybeDecryptPayload(envelope) {
  * Process an incoming AI2AI message
  */
 async function processMessage(envelope) {
+  const error=wire.validate(envelope,process.env.AI2AI_AGENT_NAME || 'my-assistant');
+  if(error) return {status:'rejected',reason:error};
+  const contact=getContact(envelope.from.agent);
+  if(!contact?.publicKey || !wire.verify(envelope,envelope.signature,contact.publicKey)) return {status:'rejected',reason:'invalid_or_unknown_signature'};
+  if(isBlocked(envelope.from.agent)) return {status:'rejected',reason:'blocked'};
+  let delivery;
+  try { delivery=inbox.reserve(envelope); } catch(e) { return {status:'rejected',reason:e.message}; }
+  if(delivery.duplicate) return delivery.result;
+  const result=await dispatchMessage(envelope);delivery.finish(result);return result;
+}
+async function dispatchMessage(envelope) {
   const fromAgentId = envelope.from?.agent;
 
   logger.logIncoming(envelope);
@@ -194,7 +207,7 @@ function handlePing(envelope) {
       languages: ['en'],
       timezone: process.env.AI2AI_TIMEZONE || 'UTC',
       model_info: 'local',
-      protocol_versions: ['0.1'],
+      protocol_versions: ['1.1'],
       public_key: keys.publicKey,
       fingerprint: getFingerprint(keys.publicKey),
       x25519_public_key: x25519Keys.publicKeyDer,
@@ -220,7 +233,7 @@ function handleRequest(envelope) {
   // Commerce always requires approval
   const alwaysApprove = result.alwaysRequiresApproval || false;
 
-  if (alwaysApprove || result.needsApproval || requiresApproval(envelope.from?.agent, envelope.intent, envelope.type)) {
+  if (envelope.requires_human_approval || envelope.intent?.startsWith('commerce.') || alwaysApprove || result.needsApproval || requiresApproval(envelope.from?.agent, envelope.intent, envelope.type)) {
     // Save as pending — human needs to approve
     savePendingApproval(envelope.id, {
       envelope,
@@ -337,7 +350,7 @@ function startServer(port = PORT) {
         res.end(JSON.stringify({
           status: 'online',
           protocol: 'ai2ai',
-          version: '0.1',
+          version: '1.1',
           intents: supportedIntents(),
         }));
         return;

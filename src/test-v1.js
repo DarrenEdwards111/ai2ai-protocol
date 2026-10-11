@@ -412,8 +412,9 @@ async function runTests() {
     // Add contacts
     agent1.addContact('prod-agent-2', { endpoint: 'http://localhost:18891/ai2ai' });
 
+    agent2.addContact('prod-agent-1', { publicKey: agent1._keys.publicKey, trustLevel: 'trusted' });
     // Send message
-    const sendResult = await agent1.send('prod-agent-2', 'Hello Bob!');
+    const sendResult = await agent1.send('prod-agent-2', 'Hello Bob!', {requiresApproval:false});
     assert(sendResult.status === 'ok', 'Send returns ok');
     await sleep(100);
     assert(receivedMessage !== null, 'Message received');
@@ -421,7 +422,7 @@ async function runTests() {
     assert(receivedMessage.from.agent === 'prod-agent-1', 'Sender identity correct');
 
     // Send request
-    const reqResult = await agent1.request('prod-agent-2', 'schedule.meeting', { subject: 'Lunch' });
+    const reqResult = await agent1.request('prod-agent-2', 'schedule.meeting', { subject: 'Lunch' }, {requiresApproval:false});
     assert(reqResult.status === 'ok', 'Request returns ok');
     await sleep(100);
     assert(receivedRequest !== null, 'Request received');
