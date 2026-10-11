@@ -1,4 +1,4 @@
-> **Unreleased security upgrade:** wire version 1.1 is breaking. See [migration and normative security rules](../docs/HARDENING-1.1.md). Older examples are historical where they conflict.
+> **2.0.0 security upgrade:** wire version 1.1 is breaking. See [migration and normative security rules](MIGRATION-2.0.md). Older examples are historical where they conflict.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/DarrenEdwards111/ai2ai-protocol/main/logo.jpg" alt="AI2AI Protocol" width="200" />
