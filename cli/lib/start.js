@@ -212,7 +212,8 @@ async function run() {
       res.end(JSON.stringify({
         status: 'online',
         protocol: 'ai2ai',
-        version: '0.1',
+        version: 'legacy-cli',
+        hardened: false, // CLI receiver does not enforce wire 1.1; see MIGRATION-2.0.md
         agent: config.agentName,
       }));
       return;
@@ -283,7 +284,9 @@ async function run() {
     res.end(JSON.stringify({ error: 'Not found. POST to /ai2ai' }));
   });
 
-  server.listen(config.port, () => {
+  // Loopback by default; set config.host or AI2AI_HOST explicitly to listen wider.
+  const host = config.host || process.env.AI2AI_HOST || '127.0.0.1';
+  server.listen(config.port, host, () => {
     const contacts = loadContacts();
     const contactCount = Object.keys(contacts).length;
 

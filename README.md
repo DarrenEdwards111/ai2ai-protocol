@@ -323,29 +323,57 @@ const adapter = createOpenClawAdapter({
 await adapter.start();
 ```
 
-### Webhooks
+### Network binding
+
+The client (`agent.start(port)`), `src/ai2ai-server.js` and `ai2ai start` listen on
+`127.0.0.1` by default. Listening wider is an explicit opt-in: `agent.start(port, { host: '0.0.0.0' })`,
+`new AI2AI({ host })`, `AI2AI_HOST=0.0.0.0`, or `host` in the CLI config. Put any non-loopback
+listener behind TLS (a reverse proxy with normal certificate verification).
+
+### Webhooks (generic, HMAC)
 
 ```js
 const { createWebhookForwarder } = require('ai2ai/src/integrations/webhook');
 
 const webhook = createWebhookForwarder({
-  url: 'https://your-server.com/webhook',
-  secret: 'shared-secret',
+  url: 'https://your-server.com/webhook',   // https required (http only for loopback or allowInsecureHttp)
+  secret: process.env.AI2AI_WEBHOOK_SECRET,
+  onError: (err) => console.error(err.code, err.message), // failures are reported, never retried
 });
 
-agent.on('message', webhook.handler);
+agent.on('message', webhook.handler); // fires only after verification and any required approval
 ```
 
-### Express Middleware
+### Grok Bot routine webhook (opt-in)
+
+Sends the minimal body `{"testid": "..."}` with `Authorization: Bearer <key>` to a Grok Bot
+routine webhook. The key comes from runtime configuration and is never logged.
+
+```js
+const { createGrokBotWebhookClient } = require('ai2ai/src/integrations/grokbot-webhook');
+const grok = createGrokBotWebhookClient({ url: process.env.GROKBOT_WEBHOOK_URL, tokenEnv: 'GROKBOT_WEBHOOK_KEY' });
+const result = await grok.sendDeliveryTest('hermes_delivery_1'); // 1-100 of A-Z a-z 0-9 _ -
+// result.accepted === true means only: Grok Bot accepted the call and started a run.
+```
+
+Limitations: delivery-test body only (no AI2AI envelope forwarding, no reply channel), no
+retries, a testid is sent at most once per process, redirects are refused, https only.
+
+### Express Middleware (2.0)
 
 ```js
 const { ai2aiMiddleware } = require('ai2ai/src/integrations/express');
 
-app.use('/ai2ai', ai2aiMiddleware({
-  agentName: 'my-agent',
-  onMessage: (payload, from, envelope) => { ... },
-}));
+const agent = new AI2AI({ name: 'my-agent', dataDir: './.ai2ai-data' });
+agent.addContact('peer', { publicKey: peerPublicKeyPem, trustLevel: 'trusted' });
+agent.on('request', (intent, payload, from) => { /* verified and approved only */ });
+agent.on('approval:required', (envelope) => { /* show to a human; call agent.resolveApproval(id, true|false) */ });
+
+app.use('/ai2ai', express.json({ limit: '100kb' }), ai2aiMiddleware({ agent }));
 ```
+
+The middleware uses the same hardened receive path as the built-in server. The 1.x
+`onMessage` / `onRequest` options are removed because they ran before signature checks.
 
 ## Protocol Specification
 

@@ -487,7 +487,7 @@ async function runTests() {
     assert(verifyWebhookSignature(body, 'sha256=wrong', secret) === false, 'Invalid signature rejected');
 
     // Test forwarder creation
-    const forwarder = createWebhookForwarder({ url: 'http://example.com/hook', secret: 'test' });
+    const forwarder = createWebhookForwarder({ url: 'https://example.com/hook', secret: 'test' });
     assert(typeof forwarder.forward === 'function', 'Forwarder has forward method');
     assert(typeof forwarder.handler === 'function', 'Forwarder has handler method');
   }
@@ -496,27 +496,16 @@ async function runTests() {
   console.log('\n━━━ 17. Express Middleware ━━━');
   const { ai2aiMiddleware } = require('./integrations/express');
   {
-    let handledMessage = null;
-    const middleware = ai2aiMiddleware({
-      agentName: 'express-test',
-      onMessage: (payload, from, envelope) => { handledMessage = { payload, from }; },
-      rateLimit: 5,
-      blocklist: ['evil-agent'],
-    });
+    // 2.0: middleware delegates to the hardened client receive path.
+    let legacyRefused = false;
+    try { ai2aiMiddleware({ agentName: 'express-test', onMessage() {} }); } catch { legacyRefused = true; }
+    assert(legacyRefused, 'Legacy unverified onMessage option refused');
+    const expressAgent = new AI2AI({ name: 'express-test', dataDir: '/tmp/ai2ai-test-express' });
+    const middleware = ai2aiMiddleware({ agent: expressAgent });
     assert(typeof middleware === 'function', 'Middleware is a function');
-
-    // Simulate Express req/res for health check
-    const mockRes = {
-      _status: 200, _body: null, _headers: {},
-      writeHead(s) { this._status = s; return this; },
-      json(data) { this._body = data; this.headersSent = true; return this; },
-      status(s) { this._status = s; return this; },
-      end(d) { this._body = d; },
-      headersSent: false,
-    };
-
-    middleware({ method: 'GET', path: '/health' }, { ...mockRes }, () => {});
-    // Can't fully test without Express but middleware function exists
+    const mockRes = { _status: 0, _body: null, status(s) { this._status = s; return this; }, json(d) { this._body = d; return this; } };
+    await middleware({ method: 'GET', path: '/health' }, mockRes, () => {});
+    assert(mockRes._body && mockRes._body.version === '1.1', 'Middleware health reports wire 1.1');
     assert(true, 'Middleware executes without crash');
   }
 

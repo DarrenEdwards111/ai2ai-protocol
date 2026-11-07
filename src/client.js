@@ -46,6 +46,9 @@ class AI2AI extends EventEmitter {
     this.name = opts.name || 'ai2ai-agent';
     this.humanName = opts.humanName || 'Human';
     this.port = opts.port || 18800;
+    // Loopback by default. Binding wider (e.g. '0.0.0.0') must be an explicit choice and
+    // should sit behind TLS; see README "Network binding".
+    this.host = opts.host || '127.0.0.1';
     this.timeout = opts.timeout || 30000;
     this.messageTTL = opts.messageTTL || 86400000;
     this.dataDir = opts.dataDir || path.join(process.cwd(), '.ai2ai-data');
@@ -90,13 +93,16 @@ class AI2AI extends EventEmitter {
    * @param {number} [port]
    * @returns {Promise<void>}
    */
-  async start(port) {
-    if (port) this.port = port;
-    return new Promise((resolve) => {
+  async start(port, opts = {}) {
+    if (port !== undefined && port !== null) this.port = port;
+    if (opts.host) this.host = opts.host;
+    return new Promise((resolve, reject) => {
       this.server = http.createServer((req, res) => this._handleRequest(req, res));
-      this.server.listen(this.port, () => {
+      this.server.once('error', reject);
+      this.server.listen(this.port, this.host, () => {
+        this.port = this.server.address().port;
         this._started = true;
-        this.emit('started', { port: this.port });
+        this.emit('started', { port: this.port, host: this.host });
         resolve();
       });
     });
@@ -318,7 +324,7 @@ class AI2AI extends EventEmitter {
 
     if (req.method === 'GET' && req.url === '/ai2ai/health') {
       res.writeHead(200);
-      res.end(JSON.stringify({ status: 'online', agent: this.name, protocol: wire.VERSION }));
+      res.end(JSON.stringify({ status: 'online', agent: this.name, protocol: 'ai2ai', version: wire.VERSION }));
       return;
     }
 
@@ -333,9 +339,22 @@ class AI2AI extends EventEmitter {
 
     let envelope;
     try { envelope = JSON.parse(body); } catch { res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid JSON' })); return; }
+    const out = await this.receiveEnvelope(envelope);
+    res.writeHead(out.code);
+    res.end(JSON.stringify(out.body));
+  }
 
+  /**
+   * Hardened receive path shared by the built-in HTTP server and integrations
+   * (e.g. Express). Validates wire 1.1, verifies the signature against a locally
+   * configured contact key, reserves the message durably (replay/duplicate),
+   * rate-limits and gates approval before emitting any application event.
+   * @param {object} envelope - parsed JSON envelope
+   * @returns {Promise<{code:number, body:object}>}
+   */
+  async receiveEnvelope(envelope) {
+    const reject = (code, reason) => ({ code, body: { status: 'rejected', reason } });
     const error = wire.validate(envelope, this.name, this.messageTTL);
-    const reject = (code, reason) => { res.writeHead(code); res.end(JSON.stringify({status:'rejected',reason})); };
     if (error) return reject(400,error);
     const fromAgent = envelope.from.agent;
     const contact = this.contacts.get(fromAgent);
@@ -343,7 +362,7 @@ class AI2AI extends EventEmitter {
     if (this.blocklist.isBlocked(fromAgent)) return reject(403,'blocked');
     let delivery;
     try { delivery = this.inbox.reserve(envelope); } catch(e) { return reject(409,e.message); }
-    if (delivery.duplicate) { res.writeHead(200);res.end(JSON.stringify(delivery.result));return; }
+    if (delivery.duplicate) return { code: 200, body: delivery.result };
     if (!this.rateLimiter.allow(fromAgent)) { const result={status:'rejected',reason:'rate_limited'};delivery.finish(result);return reject(429,'rate_limited'); }
     const needsApproval = ['message','request'].includes(envelope.type) && (envelope.requires_human_approval || (envelope.intent || '').startsWith('commerce.') || contact.trustLevel !== 'trusted');
     if (needsApproval) {
@@ -351,7 +370,7 @@ class AI2AI extends EventEmitter {
       fs.writeFileSync(wire.safePath(this.inbox.dir,envelope.id,'.pending.json'),JSON.stringify(envelope),{mode:0o600});
       const result={status:'pending_approval',id:envelope.id};delivery.finish(result);
       this.emit('approval:required',envelope);
-      res.writeHead(200);res.end(JSON.stringify(result));return;
+      return { code: 200, body: result };
     }
     // Emit events
     if (envelope.type === 'message' || envelope.type === 'request') {
@@ -372,13 +391,9 @@ class AI2AI extends EventEmitter {
       this.emit('receipt:send', envelope.id, envelope.from);
     }
 
-    delivery.finish({status:'ok',id:envelope.id,agent:this.name});
-    res.writeHead(200);
-    res.end(JSON.stringify({
-      status: 'ok',
-      id: envelope.id,
-      agent: this.name,
-    }));
+    const result = { status: 'ok', id: envelope.id, agent: this.name };
+    delivery.finish(result);
+    return { code: 200, body: result };
   }
 
   _loadOrCreateKeys() {

@@ -1,94 +1,60 @@
 /**
- * AI2AI Express Middleware
- * 
- * Drop-in middleware for receiving AI2AI messages in Express apps.
- * 
+ * AI2AI Express Middleware (2.0, hardened)
+ *
+ * Delegates every POST to the AI2AI client's hardened receive path
+ * (`agent.receiveEnvelope`): wire 1.1 validation, Ed25519 verification against
+ * locally configured contact keys, durable replay/duplicate protection, expiry,
+ * rate limiting and local approval gating. Application code subscribes to the
+ * agent's `message` / `request` events, which fire only after verification and,
+ * where required, an explicit `agent.resolveApproval(id, true)`.
+ *
+ * Breaking change from 1.x: `onMessage` / `onRequest` callbacks are removed because
+ * they ran before any signature check.
+ *
  * Usage:
- *   const express = require('express');
- *   const { ai2aiMiddleware } = require('ai2ai-protocol/src/integrations/express');
- *   
- *   const app = express();
- *   app.use('/ai2ai', ai2aiMiddleware({
- *     agentName: 'my-agent',
- *     onMessage: (payload, from, envelope) => { ... },
- *   }));
- * 
- * @author Mikoshi Ltd <mikoshiuk@gmail.com>
+ *   const agent = new AI2AI({ name: 'my-agent', dataDir });
+ *   agent.addContact('peer', { publicKey, trustLevel: 'trusted' });
+ *   agent.on('request', (intent, payload, from) => { ... });
+ *   app.use('/ai2ai', express.json({ limit: '100kb' }), ai2aiMiddleware({ agent }));
  */
+'use strict';
+const wire = require('../wire');
 
-const crypto = require('crypto');
-const { RateLimiter, NonceTracker, isMessageExpired } = require('../security');
-const { Deduplicator } = require('../reliability');
+const MAX_BODY = 102400;
 
-/**
- * Create Express middleware for receiving AI2AI messages
- * 
- * @param {object} opts
- * @param {string} opts.agentName - This agent's name
- * @param {Function} opts.onMessage - Called for each message: (payload, from, envelope, res) => {}
- * @param {Function} [opts.onRequest] - Called for requests: (intent, payload, from, envelope, res) => {}
- * @param {number} [opts.rateLimit=20] - Max requests per minute per agent
- * @param {number} [opts.maxAge=86400000] - Max message age in ms
- * @param {string[]} [opts.blocklist] - Blocked agent IDs
- * @returns {Function} Express middleware
- */
+async function readBody(req) {
+  if (req.body !== undefined && req.body !== null) {
+    if (Buffer.isBuffer(req.body)) return JSON.parse(req.body.toString('utf8'));
+    if (typeof req.body === 'string') return JSON.parse(req.body);
+    return req.body;
+  }
+  let raw = '';
+  for await (const chunk of req) { raw += chunk; if (raw.length > MAX_BODY) { const e = new Error('too_large'); e.tooLarge = true; throw e; } }
+  return JSON.parse(raw);
+}
+
 function ai2aiMiddleware(opts = {}) {
-  const agentName = opts.agentName || 'express-agent';
-  const rateLimiter = new RateLimiter({ maxRequests: opts.rateLimit || 20 });
-  const nonceTracker = new NonceTracker();
-  const deduplicator = new Deduplicator();
-  const blocklist = new Set(opts.blocklist || []);
-  const maxAge = opts.maxAge || 86400000;
+  if (opts.onMessage || opts.onRequest) {
+    throw new Error('ai2aiMiddleware: onMessage/onRequest were removed in 2.0 because they bypassed verification; subscribe to agent "message"/"request" events instead');
+  }
+  const agent = opts.agent;
+  if (!agent || typeof agent.receiveEnvelope !== 'function') {
+    throw new Error('ai2aiMiddleware requires opts.agent (an AI2AI client instance)');
+  }
 
-  return function ai2aiHandler(req, res, next) {
-    // Health check
-    if (req.method === 'GET' && (req.path === '/health' || req.path === '/')) {
-      return res.json({ status: 'online', agent: agentName, protocol: '1.0' });
-    }
-
-    if (req.method !== 'POST') {
-      return res.status(405).json({ error: 'Method not allowed' });
-    }
-
-    // Parse body (handle both parsed and raw)
-    const envelope = req.body;
-    if (!envelope || !envelope.ai2ai || !envelope.type || !envelope.from) {
-      return res.status(400).json({ error: 'Invalid AI2AI envelope' });
-    }
-
-    const fromAgent = envelope.from?.agent;
-
-    // Security checks
-    if (blocklist.has(fromAgent)) {
-      return res.status(403).json({ status: 'rejected', reason: 'blocked' });
-    }
-
-    if (!rateLimiter.allow(fromAgent)) {
-      return res.status(429).json({ status: 'rejected', reason: 'rate_limited' });
-    }
-
-    if (isMessageExpired(envelope, maxAge)) {
-      return res.status(400).json({ status: 'rejected', reason: 'message_expired' });
-    }
-
-    if (envelope.nonce && nonceTracker.isReplay(envelope.nonce)) {
-      return res.status(400).json({ status: 'rejected', reason: 'replay_detected' });
-    }
-
-    if (deduplicator.isDuplicate(envelope.id)) {
-      return res.json({ status: 'duplicate', id: envelope.id });
-    }
-
-    // Route to handlers
-    if (envelope.type === 'request' && opts.onRequest) {
-      opts.onRequest(envelope.intent, envelope.payload, envelope.from, envelope, res);
-    } else if (opts.onMessage) {
-      opts.onMessage(envelope.payload, envelope.from, envelope, res);
-    }
-
-    // Default response if handler didn't respond
-    if (!res.headersSent) {
-      res.json({ status: 'ok', id: envelope.id, agent: agentName });
+  return async function ai2aiHandler(req, res, next) {
+    try {
+      if (req.method === 'GET' && (req.path === '/health' || req.path === '/')) {
+        return res.status(200).json({ status: 'online', agent: agent.name, protocol: 'ai2ai', version: wire.VERSION });
+      }
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+      let envelope;
+      try { envelope = await readBody(req); }
+      catch (e) { return e.tooLarge ? res.status(413).json({ error: 'Payload too large' }) : res.status(400).json({ error: 'Invalid JSON' }); }
+      const { code, body } = await agent.receiveEnvelope(envelope);
+      return res.status(code).json(body);
+    } catch (err) {
+      return next(err);
     }
   };
 }

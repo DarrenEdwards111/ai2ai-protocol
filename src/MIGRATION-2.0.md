@@ -27,3 +27,10 @@ Authenticated messages are reserved on disk before dispatch. Same sender + same 
 5. Run `node --test tests/security.test.js` from the repository root. `src/test-v1.js` exercises additional features. The historical `src/test.js` contains old wire fixtures and live-state assumptions; it is not the 1.1 conformance suite.
 
 The nested `repo` gitlink is a separate checkout and is not a second deployment target modified by this patch. Deploy from this checkout's `src` and `cli` directories.
+
+## Integrations and binding (2.0 follow-up)
+- `integrations/express`: now requires `{ agent }` (an AI2AI client) and delegates to `agent.receiveEnvelope`, the same validation, signature, contact-key, replay, expiry, rate-limit and approval path as the built-in server. `onMessage`/`onRequest` throw at construction; subscribe to agent events instead. Health reports `{ protocol: 'ai2ai', version: '1.1' }`.
+- `integrations/webhook` (generic HMAC): unchanged body and `X-AI2AI-Signature`; now rejects non-2xx, redirects, network errors and timeouts with `WebhookDeliveryError` and reports handler failures to `onError` (default: console.error, no secrets). http URLs are refused except loopback or `allowInsecureHttp: true`. Envelope-derived header values are sanitised.
+- `integrations/grokbot-webhook` (new, opt-in): Bearer key from runtime config, `{"testid"}` body only. HTTP 2xx means a run was accepted, not completed or answered.
+- Listeners default to `127.0.0.1` (client, `ai2ai-server.js`, CLI). Set `host`/`AI2AI_HOST` explicitly to listen wider, behind TLS.
+- Known gap: the standalone CLI receiver (`cli/lib/start.js`) still does not enforce wire 1.1 (unsigned messages from unknown senders reach the pending queue; ping stores unverified keys). Its health now says `version: 'legacy-cli', hardened: false`. Do not expose it beyond loopback.

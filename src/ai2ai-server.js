@@ -21,6 +21,8 @@ const logger = require('./ai2ai-logger');
 
 const inbox = new wire.Inbox(require('path').join(__dirname,'inbox'));
 const PORT = parseInt(process.env.AI2AI_PORT) || 18800;
+// Loopback by default; set AI2AI_HOST (e.g. 0.0.0.0) explicitly to listen wider, behind TLS.
+const HOST = process.env.AI2AI_HOST || '127.0.0.1';
 const CONVERSATIONS_DIR = path.join(__dirname, 'conversations');
 const PENDING_DIR = path.join(__dirname, 'pending');
 
@@ -328,7 +330,7 @@ function formatReplyForHuman(envelope) {
 /**
  * Start the AI2AI HTTP server
  */
-function startServer(port = PORT) {
+function startServer(port = PORT, host = HOST) {
   const server = http.createServer(async (req, res) => {
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -350,7 +352,7 @@ function startServer(port = PORT) {
         res.end(JSON.stringify({
           status: 'online',
           protocol: 'ai2ai',
-          version: '1.1',
+          version: wire.VERSION,
           intents: supportedIntents(),
         }));
         return;
@@ -417,8 +419,8 @@ function startServer(port = PORT) {
     }
   });
 
-  server.listen(port, () => {
-    logger.info('SERVER', `AI2AI server started on port ${port}`);
+  server.listen(port, host, () => {
+    logger.info('SERVER', `AI2AI server started on ${host}:${port}`);
     console.log(`🦞 AI2AI server listening on port ${port}`);
     console.log(`   Endpoint:    http://localhost:${port}/ai2ai`);
     console.log(`   Health:      http://localhost:${port}/ai2ai/health`);
